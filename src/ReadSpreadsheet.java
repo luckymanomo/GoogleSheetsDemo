@@ -2,8 +2,10 @@ import java.awt.Toolkit;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.URL;
-import java.util.Collections;
+import java.util.Arrays;
+import java.util.Date;
 import java.util.List;
+import java.util.TimeZone;
 
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.extensions.java6.auth.oauth2.AuthorizationCodeInstalledApp;
@@ -16,8 +18,10 @@ import com.google.api.client.json.JsonFactory;
 import com.google.api.client.json.jackson.JacksonFactory;
 import com.google.api.client.util.store.FileDataStoreFactory;
 import com.google.gdata.client.spreadsheet.SpreadsheetService;
-import com.google.gdata.data.Feed;
+import com.google.gdata.data.DateTime;
 import com.google.gdata.data.PlainTextConstruct;
+import com.google.gdata.data.spreadsheet.CellEntry;
+import com.google.gdata.data.spreadsheet.CellFeed;
 import com.google.gdata.data.spreadsheet.SpreadsheetEntry;
 import com.google.gdata.data.spreadsheet.SpreadsheetFeed;
 import com.google.gdata.data.spreadsheet.WorksheetEntry;
@@ -32,68 +36,88 @@ public class ReadSpreadsheet {
 
 	private static FileDataStoreFactory dataStoreFactory;
 	public static final GoogleClientSecrets googleClientSecrets=null;
-    public static final String GOOGLE_ACCOUNT_USERNAME = "luckymanomo2@gmail.com"; // Fill in google account username
-    //public static final String GOOGLE_ACCOUNT_PASSWORD = "aaaAAA111"; // Fill in google account password
-      //public static final String SPREADSHEET_URL = "https://spreadsheets.google.com/feeds/spreadsheets/1L8xtAJfOObsXL-XemliUV10wkDHQNxjn6jKS4XwzYZ8"; //Fill in google spreadsheet URI
-      //public static final String SPREADSHEET_URL = "https://docs.google.com/spreadsheets/d/1ePabkKybbOW2BzAmpqqUXTTG49LzZ3-39G2qtzJMtjo";
-      //public static final String SPREADSHEET_URL = "https://spreadsheets.google.com/feeds/spreadsheets/1ePabkKybbOW2BzAmpqqUXTTG49LzZ3-39G2qtzJMtjo";
-	public static URL SPREADSHEET_FEED_URL;
+    public static URL SPREADSHEET_FEED_URL;
 
       public static void main(String[] args) throws IOException, ServiceException{
         /** Our view of Google Spreadsheets as an authenticated Google user. */
         
-            // Define the URL to request.  This should never change.
-           //SPREADSHEET_FEED_URL = new URL("https://spreadsheets.google.com/feeds/spreadsheets/private/full");
-           SPREADSHEET_FEED_URL = new URL("https://spreadsheets.google.com/feeds/worksheets/1ePabkKybbOW2BzAmpqqUXTTG49LzZ3-39G2qtzJMtjo/public/full");
-           try {
-			authorize();
-		} catch (Exception e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-        SpreadsheetService service =new SpreadsheetService("MySpreadsheetIntegration");
+           SPREADSHEET_FEED_URL = new URL("https://spreadsheets.google.com/feeds/spreadsheets/private/full");
+        
+           Credential credential=null;
+           try {credential=authorize();} catch (Exception e) {e.printStackTrace();}
+           SpreadsheetService service =new SpreadsheetService("MySpreadsheetIntegration");
+           //credential.refreshToken();
+           String accessToken=credential.getAccessToken();
+           System.out.println("accessToken:"+accessToken);
+           //service.setUserToken(accessToken);
+           service.setAuthSubToken(accessToken);
+           
+           
             SpreadsheetFeed feed = service.getFeed(SPREADSHEET_FEED_URL, SpreadsheetFeed.class);
+            //service.setAuthSubToken(accessToken);
             
             List<SpreadsheetEntry> spreadsheets = feed.getEntries();
 
             // Iterate through all of the spreadsheets returned
             for (SpreadsheetEntry spreadsheet : spreadsheets) {
-              // Print the title of this spreadsheet to the screen
-              System.out.println(spreadsheet.getTitle().getPlainText());
-              //spreadsheet.setTitle(new PlainTextConstruct("SheetCool"));
-              WorksheetFeed worksheetFeed = service.getFeed(SPREADSHEET_FEED_URL, WorksheetFeed.class);
-              List<WorksheetEntry> worksheets = worksheetFeed.getEntries();
-              WorksheetEntry worksheet = worksheets.get(0);
-           // Send the local representation of the worksheet to the API for
-              // modification.
-              System.out.println("worksheet.getTitle():"+worksheet.getTitle().getPlainText());
-              worksheet.setTitle(new PlainTextConstruct("Updated Worksheet"));
-              worksheet.update();
-              System.out.println("after:"+spreadsheet.getTitle().getPlainText());
-              
-            }
-            
-           
+            	 // Get the first worksheet of the first spreadsheet.
+                // TODO: Choose a worksheet more intelligently based on your
+                // app's needs.
+            	
+            	System.out.println(spreadsheet.getTitle().getPlainText());
+            	//System.out.println(spreadsheet.getWorksheetFeedUrl());
+            	spreadsheet.setTitle(new PlainTextConstruct("TESTDDD"));
+            	System.out.println(spreadsheet.getTitle().getPlainText());
+            	spreadsheet.setUpdated(new DateTime(new Date(), TimeZone.getTimeZone("Asia/Bangkok")));
+            	
+            	
+            	WorksheetFeed worksheetFeed = service.getFeed(spreadsheet.getWorksheetFeedUrl(), WorksheetFeed.class);
+            	    List<WorksheetEntry> worksheets = worksheetFeed.getEntries();
+            	    WorksheetEntry worksheet = worksheets.get(0);
 
-                // Update the local representation of the worksheet.
+            	    System.out.println(worksheet.getTitle().getPlainText());
+            	    System.out.println(worksheet.getCellFeedUrl());
+            	    URL cellFeedURL=worksheet.getCellFeedUrl();
+            	    CellFeed cellFeed=service.getFeed(cellFeedURL, CellFeed.class);
+            	    for (CellEntry cell : cellFeed.getEntries()) {
+            	    	System.out.println(cell.getTitle().getPlainText()+":"+cell.getCell().getInputValue());
+            	    	if(cell.getTitle().getPlainText().equals("A2")){
+            	    		cell.changeInputValueLocal("10");
+            	    		cell.update();
+            	    	}
+            	    }
+            	    
+            	    /*for (CellEntry cell : cellFeed.getEntries()) {
+            	    	System.out.println(cell.getTitle().getPlainText()+":"+cell.getCell().getInputValue());
+            		}*/
+            	    
+            }
+        
+            
       }
       /** Authorizes the installed application to access user's protected data. */
       private static Credential authorize() throws Exception {
         // load client secrets
-        GoogleClientSecrets clientSecrets = GoogleClientSecrets.load(JSON_FACTORY,new InputStreamReader(Toolkit.getDefaultToolkit().getClass().getResourceAsStream("/client_secret_.json")));
+        GoogleClientSecrets clientSecrets = GoogleClientSecrets.load(JSON_FACTORY,new InputStreamReader(Toolkit.getDefaultToolkit().getClass().getResourceAsStream("/client_secret2.json")));
         
-        System.out.println(clientSecrets.getDetails());
+        //System.out.println(clientSecrets.getDetails());
         
         // Initialize the data store factory.
         dataStoreFactory = new FileDataStoreFactory(DATA_STORE_DIR);
         
+        List<String> SCOPES = Arrays.asList(SPREADSHEET_FEED_URL.toString());
+        
+        /*String[] SCOPESArray = {"https://spreadsheets.google.com/feeds", "https://spreadsheets.google.com/feeds/spreadsheets/private/full", "https://docs.google.com/feeds"};
+        final List<String> SCOPES = Arrays.asList(SCOPESArray);*/
+        
         // set up authorization code flow
         GoogleAuthorizationCodeFlow flow = new GoogleAuthorizationCodeFlow.Builder(
         		HTTP_TRANSPORT, JSON_FACTORY, clientSecrets,
-            Collections.singleton(SPREADSHEET_FEED_URL.toString())).setDataStoreFactory(dataStoreFactory)
+        		SCOPES).setDataStoreFactory(dataStoreFactory)
            .build();
+        
         // authorize
-        return new AuthorizationCodeInstalledApp(flow, new LocalServerReceiver()).authorize("beckham");
+        return new AuthorizationCodeInstalledApp(flow, new LocalServerReceiver()).authorize("luckymanomo2@gmail.com");
      }
      
 }
