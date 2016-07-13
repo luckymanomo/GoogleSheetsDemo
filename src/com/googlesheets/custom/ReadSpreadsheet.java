@@ -73,34 +73,7 @@ public class ReadSpreadsheet {
 			e.printStackTrace();
 		}
     }
-	/*public static void main(String[] args) throws Exception{
-		*//** Our view of Google Spreadsheets as an authenticated Google user. *//*
-		try {
-			credential = authorize();
-			loadSheet();
-		} catch (com.google.gdata.util.AuthenticationException e) {
-			e.printStackTrace();
-			System.out.println("Trying connecting");
-			System.out.println(DATA_STORE_DIR.getAbsolutePath());
-			new File(DATA_STORE_DIR.getAbsolutePath()+File.separator+"StoredCredential").delete();
-			credential = authorize();
-			loadSheet();
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-			
-		try {
-			RateDataBean rateDataBean=retrieveLastRecord();
-			System.out.println(rateDataBean);
-			//insertRecord(DateFormat.getInstance().format(new Date())+"","30.33","10.50");
-		} catch (IOException | ServiceException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-			
-		
-		
-	}*/
+    
       /** Authorizes the installed application to access user's protected data. */
     public static Credential authorize() throws Exception {
     	String keyName="client_secret5.json";
@@ -174,13 +147,16 @@ public class ReadSpreadsheet {
       
     public static void loadSheet() throws IOException, ServiceException{
     	  service = new SpreadsheetService("SIA_DEMO");
-
+			//credential.setExpiresInSeconds(2592000l);
 			System.out.println("RefreshToken:"+credential.getRefreshToken());
 			System.out.println("AccessToken:"+credential.getAccessToken());
-			System.out.println("Expired Time (minute):"+credential.getExpirationTimeMilliseconds()/60000);
+			System.out.println("Expired Time (minutes):"+credential.getExpiresInSeconds()/60);
+
+			//System.out.println("Expired Time (minute):"+credential.getExpirationTimeMilliseconds()/60000);
 
 			//credential.refreshToken();
-			String accessToken = credential.getAccessToken();
+			//String accessToken = credential.getAccessToken();
+			String accessToken = credential.getRefreshToken();
 			// System.out.println("accessToken:"+accessToken);
 			service.setAuthSubToken(accessToken);
 			//service.setUserToken(credential.getRefreshToken());
