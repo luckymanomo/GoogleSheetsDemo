@@ -1,14 +1,11 @@
 package com.googlesheets.custom;
 import java.awt.Toolkit;
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.URL;
-import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
-import java.util.Date;
 import java.util.List;
 
 import com.google.api.client.auth.oauth2.Credential;
@@ -34,7 +31,7 @@ public class ReadSpreadsheet {
 	public static final HttpTransport HTTP_TRANSPORT = new NetHttpTransport(); 
 	public static final JsonFactory JSON_FACTORY = new JacksonFactory();
 	/** Directory to store user credentials. */
-	public static final java.io.File DATA_STORE_DIR = new java.io.File(System.getProperty("user.home"), ".store/credentials_storage");
+	public static final java.io.File DATA_STORE_DIR = new java.io.File(System.getProperty("user.home"), ".store/credentials_storage1");
 	public static final String SPREADSHEET_FEED="https://spreadsheets.google.com/feeds/spreadsheets/private/full";
 	public static final List<String> SCOPES = Arrays.asList("https://spreadsheets.google.com/feeds","https://docs.google.com/feeds");
      
@@ -54,12 +51,13 @@ public class ReadSpreadsheet {
 			credential = authorize();
 			loadSheet();
 		} catch (com.google.gdata.util.AuthenticationException e) {
-			e.printStackTrace();
+			/*e.printStackTrace();
 			System.out.println("Trying connecting");
 			System.out.println(DATA_STORE_DIR.getAbsolutePath());
 			new File(DATA_STORE_DIR.getAbsolutePath()+File.separator+"StoredCredential").delete();
 			credential = authorize();
-			loadSheet();
+			loadSheet();*/
+			e.printStackTrace();
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -84,12 +82,83 @@ public class ReadSpreadsheet {
         // Initialize the data store factory.
         dataStoreFactory = new FileDataStoreFactory(DATA_STORE_DIR);
         // set up authorization code flow
+        //GoogleAuthorizationCodeFlow flow = new GoogleAuthorizationCodeFlow.Builder(HTTP_TRANSPORT, JSON_FACTORY, clientSecrets,SCOPES).setDataStoreFactory(dataStoreFactory).build();
+        //GoogleAuthorizationCodeFlow flow = new GoogleAuthorizationCodeFlow.Builder(HTTP_TRANSPORT, JSON_FACTORY, clientSecrets,SCOPES).setAccessType("offline").setDataStoreFactory(dataStoreFactory).build();
+        //GoogleAuthorizationCodeFlow flow = new GoogleAuthorizationCodeFlow.Builder(HTTP_TRANSPORT, JSON_FACTORY, clientSecrets,SCOPES).setApprovalPrompt("force").setDataStoreFactory(dataStoreFactory).build();
         GoogleAuthorizationCodeFlow flow = new GoogleAuthorizationCodeFlow.Builder(HTTP_TRANSPORT, JSON_FACTORY, clientSecrets,SCOPES).setDataStoreFactory(dataStoreFactory).build();
         
         // authorize
         return new AuthorizationCodeInstalledApp(flow, new LocalServerReceiver()).authorize("user2");
      }
       
+    public static void loadSheet() throws IOException, ServiceException{
+    	  	service = new SpreadsheetService("SIA_DEMO");
+			System.out.println("Initialize...");
+			System.out.println("AccessToken:"+credential.getAccessToken());
+			System.out.println("RefreshToken:"+credential.getRefreshToken());
+			System.out.println("Expired Time (minutes):"+credential.getExpiresInSeconds()/60);
+			
+			String accessToken = credential.getAccessToken();
+			
+			//String accessToken = credential.getRefreshToken();
+			service.setAuthSubToken(accessToken);
+			credential.refreshToken();
+			feed = service.getFeed(SPREADSHEET_FEED_URL, SpreadsheetFeed.class);
+			// service.setAuthSubToken(accessToken);
+			List<SpreadsheetEntry> spreadsheets = feed.getEntries();
+			// Iterate through all of the spreadsheets returned
+			int i=0;
+			for (SpreadsheetEntry spreadsheet : spreadsheets) {
+				System.out.println("Sheet Name: "+(++i)+". "+spreadsheet.getTitle().getPlainText());
+				//Specify this sheet
+				if ("SiaRateExchange".equalsIgnoreCase(spreadsheet.getTitle().getPlainText())) {
+					spreadsheetSia=spreadsheet;
+					WorksheetFeed worksheetFeed = service.getFeed(spreadsheet.getWorksheetFeedUrl(), WorksheetFeed.class);
+					List<WorksheetEntry> worksheets = worksheetFeed.getEntries();
+					worksheet = worksheets.get(0);
+					
+					/*URL cellFeedURL = worksheet.getCellFeedUrl();
+					CellFeed cellFeed = service.getFeed(cellFeedURL, CellFeed.class);*/
+
+					//System.out.println("Row Count:"+worksheet.getRowCount());
+					
+					/*for (CellEntry cell : cellFeed.getEntries()) {
+						//System.out.println(cell.getTitle().getPlainText() + ":" + cell.getCell().getInputValue());
+						if (cell.getTitle().getPlainText().equals("A2")) {
+							cell.changeInputValueLocal("50");
+							cell.update();
+						}
+					}*/
+				}
+			}
+      }
+      
+      /**
+       * This method is an alternative to {@link #readCredentialFromCommandLine}. It reads
+       * client secrets from a {@code client_secrets.json} file, interactively creates
+       * the necessary authorization tokens on first run, and stores the tokens in the
+       * {@code FileDataStore}. Subsequent runs will no longer require interactivity
+       * as long as the {@code .credentials/doubleclicksearch.json} file is not removed.
+       * You can download the {@code .credentials/doubleclicksearch.json} file from the
+       * Google Developers Console.
+       * Note that setting the {@link GoogleAuthorizationCodeFlow} access type
+       * to {@code offline} is what causes {@code GoogleAuthorizationCodeFlow} to obtain
+       * and store refresh tokens.
+       *//*
+      private static Credential generateCredentialInteractively() throws Exception {
+        dataStoreFactory = new FileDataStoreFactory(DATA_STORE_DIR);
+        GoogleClientSecrets clientSecrets = GoogleClientSecrets.load(
+        		JSON_FACTORY, new InputStreamReader(
+            		ReadSpreadsheet.class.getResourceAsStream("/client_secret5.json")));
+        GoogleAuthorizationCodeFlow flow = new GoogleAuthorizationCodeFlow.Builder(
+        		HTTP_TRANSPORT, JSON_FACTORY, clientSecrets, SCOPES)
+                .setDataStoreFactory(dataStoreFactory)
+                .setAccessType("offline")
+                .build();
+        return new AuthorizationCodeInstalledApp(flow, new LocalServerReceiver()).authorize("user");
+      }*/
+
+    
     public static RateDataBean retrieveLastRecord() throws IOException, ServiceException{
     	  RateDataBean rateDataBean=new RateDataBean();
     	  /*URL cellFeedURL = worksheet.getCellFeedUrl();
@@ -129,7 +198,8 @@ public class ReadSpreadsheet {
     	    
     	  return rateDataBean;
       }
-      
+
+    
     public static void insertRecord(String dateTime,String buyingValue,String sellingValue) throws IOException, ServiceException{
     	// Fetch the list feed of the worksheet.
 		    URL listFeedUrl = worksheet.getListFeedUrl();
@@ -144,74 +214,5 @@ public class ReadSpreadsheet {
 		    // Send the new row to the API for insertion.
 		    row = service.insert(listFeedUrl, row);
       }
-      
-    public static void loadSheet() throws IOException, ServiceException{
-    	  service = new SpreadsheetService("SIA_DEMO");
-			//credential.setExpiresInSeconds(2592000l);
-			System.out.println("RefreshToken:"+credential.getRefreshToken());
-			System.out.println("AccessToken:"+credential.getAccessToken());
-			System.out.println("Expired Time (minutes):"+credential.getExpiresInSeconds()/60);
-
-			//System.out.println("Expired Time (minute):"+credential.getExpirationTimeMilliseconds()/60000);
-
-			//credential.refreshToken();
-			//String accessToken = credential.getAccessToken();
-			String accessToken = credential.getRefreshToken();
-			// System.out.println("accessToken:"+accessToken);
-			service.setAuthSubToken(accessToken);
-			//service.setUserToken(credential.getRefreshToken());
-			feed = service.getFeed(SPREADSHEET_FEED_URL, SpreadsheetFeed.class);
-			// service.setAuthSubToken(accessToken);
-			List<SpreadsheetEntry> spreadsheets = feed.getEntries();
-			// Iterate through all of the spreadsheets returned
-			for (SpreadsheetEntry spreadsheet : spreadsheets) {
-				System.out.println("Sheet Name:"+spreadsheet.getTitle().getPlainText());
-				//Specify this sheet
-				if ("SiaRateExchange".equalsIgnoreCase(spreadsheet.getTitle().getPlainText())) {
-					spreadsheetSia=spreadsheet;
-					WorksheetFeed worksheetFeed = service.getFeed(spreadsheet.getWorksheetFeedUrl(), WorksheetFeed.class);
-					List<WorksheetEntry> worksheets = worksheetFeed.getEntries();
-					worksheet = worksheets.get(0);
-					
-					/*URL cellFeedURL = worksheet.getCellFeedUrl();
-					CellFeed cellFeed = service.getFeed(cellFeedURL, CellFeed.class);*/
-
-					System.out.println("Row Count:"+worksheet.getRowCount());
-					
-					/*for (CellEntry cell : cellFeed.getEntries()) {
-						//System.out.println(cell.getTitle().getPlainText() + ":" + cell.getCell().getInputValue());
-						if (cell.getTitle().getPlainText().equals("A2")) {
-							cell.changeInputValueLocal("50");
-							cell.update();
-						}
-					}*/
-				}
-			}
-      }
-      
-      /**
-       * This method is an alternative to {@link #readCredentialFromCommandLine}. It reads
-       * client secrets from a {@code client_secrets.json} file, interactively creates
-       * the necessary authorization tokens on first run, and stores the tokens in the
-       * {@code FileDataStore}. Subsequent runs will no longer require interactivity
-       * as long as the {@code .credentials/doubleclicksearch.json} file is not removed.
-       * You can download the {@code .credentials/doubleclicksearch.json} file from the
-       * Google Developers Console.
-       * Note that setting the {@link GoogleAuthorizationCodeFlow} access type
-       * to {@code offline} is what causes {@code GoogleAuthorizationCodeFlow} to obtain
-       * and store refresh tokens.
-       *//*
-      private static Credential generateCredentialInteractively() throws Exception {
-        dataStoreFactory = new FileDataStoreFactory(DATA_STORE_DIR);
-        GoogleClientSecrets clientSecrets = GoogleClientSecrets.load(
-        		JSON_FACTORY, new InputStreamReader(
-            		ReadSpreadsheet.class.getResourceAsStream("/client_secret5.json")));
-        GoogleAuthorizationCodeFlow flow = new GoogleAuthorizationCodeFlow.Builder(
-        		HTTP_TRANSPORT, JSON_FACTORY, clientSecrets, SCOPES)
-                .setDataStoreFactory(dataStoreFactory)
-                .setAccessType("offline")
-                .build();
-        return new AuthorizationCodeInstalledApp(flow, new LocalServerReceiver()).authorize("user");
-      }*/
      
 }
